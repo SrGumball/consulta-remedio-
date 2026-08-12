@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AXION Consulta - Catálogo Médico</title>
+    <link rel="icon" type="image/png" href="/src-tauri/icons/icon.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary:      #3b82f6;
+            --primary-dark: #2563eb;
+            --primary-light:#eff6ff;
+            --bg:           #f8fafc;
+            --surface:      #ffffff;
+            --border:       #e2e8f0;
+            --text:         #0f172a;
+            --muted:        #64748b;
+            --success:      #22c55e;
+            --danger:       #ef4444;
+            --radius:       10px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            min-height: 100vh;
+        }
+
+        /* ─── OVERLAYS ─── */
+        .overlay {
+            position: fixed; inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            backdrop-filter: blur(4px);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 200;
+            transition: opacity 0.25s ease;
+        }
+        .overlay.hidden { opacity: 0; pointer-events: none; }
+
+        .modal {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 36px 32px 28px;
+            width: 360px;
+            box-shadow: 0 20px 60px rgba(15,23,42,0.15);
+        }
+
+        .modal-header {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 24px;
+        }
+        .modal-icon {
+            width: 40px; height: 40px; border-radius: 10px;
+            background: var(--primary-light);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; flex-shrink: 0;
+        }
+        .modal-header h2 {
+            font-size: 16px; font-weight: 600; color: var(--text);
+        }
+        .modal-header p {
+            font-size: 12px; color: var(--muted); margin-top: 2px;
+        }
+
+        .field { margin-bottom: 16px; }
+        .field label {
+            display: block; font-size: 12px; font-weight: 500;
+            color: var(--muted); margin-bottom: 6px;
+        }
+        .field input {
+            width: 100%;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 12px;
+            color: var(--text); font-size: 14px;
+            outline: none; transition: border 0.2s, box-shadow 0.2s;
+        }
+        .field input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+        }
+
+        .btn-primary {
+            width: 100%; background: var(--primary);
+            color: #fff; border: none; border-radius: 8px;
+            padding: 11px; font-size: 14px; font-weight: 600;
+            cursor: pointer; transition: background 0.2s;
+            margin-top: 4px;
+        }
+        .btn-primary:hover { background: var(--primary-dark); }
+
+        .modal-footer {
+            display: flex; justify-content: flex-end;
+            margin-top: 10px;
+        }
+        .btn-ghost {
+            background: none; border: none; color: var(--muted);
+            font-size: 13px; cursor: pointer; padding: 6px 10px;
+            border-radius: 6px; transition: background 0.15s, color 0.15s;
+        }
+        .btn-ghost:hover { background: var(--bg); color: var(--text); }
+
+        .error-msg { font-size: 12px; color: var(--danger); margin-top: 10px; min-height: 16px; }
+
+        /* ─── SIDEBAR ─── */
+        .layout { display: flex; height: 100vh; }
+
+        aside {
+            width: 220px; flex-shrink: 0;
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            display: flex; flex-direction: column;
+            padding: 20px 0;
+        }
+
+        .sidebar-logo {
+            display: flex; flex-direction: column; gap: 2px;
+            padding: 0 20px 20px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 16px;
+        }
+        .logo-text {
+            font-size: 24px; font-weight: 800; letter-spacing: -0.05em; line-height: 1;
+        }
+        .logo-text .ax { color: var(--primary); }
+        .logo-text .ion { color: var(--text); }
+        .logo-subtitle {
+            font-size: 11px; font-weight: 700; color: var(--primary);
+            text-transform: uppercase; letter-spacing: 0.1em;
+        }
+
+        .nav-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 9px 20px; cursor: pointer;
+            color: var(--muted); font-size: 13px; font-weight: 500;
+            border-radius: 0;
+            transition: background 0.15s, color 0.15s;
+            text-decoration: none;
+        }
+        .nav-item:hover { background: var(--bg); color: var(--text); }
+        .nav-item.active { background: var(--primary-light); color: var(--primary); font-weight: 600; }
+        .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+        .sidebar-bottom {
+            margin-top: auto; padding: 16px 20px 0;
+            border-top: 1px solid var(--border);
+        }
+
+        /* Status clicável */
+        #serverStatusBtn {
+            display: flex; align-items: center; gap: 8px;
+            width: 100%; background: none; border: 1px solid var(--border);
+            border-radius: 8px; padding: 8px 12px; cursor: pointer;
+            color: var(--muted); font-size: 12px; font-weight: 500;
+            transition: all 0.2s; font-family: inherit;
+        }
+        #serverStatusBtn:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+        #serverStatusBtn.online { border-color: #bbf7d0; background: #f0fdf4; color: #15803d; }
+
+        .dot {
+            width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+            background: var(--muted);
+        }
+        .dot.on  { background: var(--success); box-shadow: 0 0 5px rgba(34,197,94,0.5); }
+        .dot.off { background: #94a3b8; }
+
+        /* ─── MAIN CONTENT ─── */
+        .content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+        .topbar {
+            background: var(--surface); border-bottom: 1px solid var(--border);
+            padding: 16px 28px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .topbar h1 { font-size: 16px; font-weight: 600; color: var(--text); }
+        .topbar p  { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+        .page { padding: 28px; overflow-y: auto; flex: 1; }
+
+        /* Search */
+        .search-row {
+            display: flex; gap: 10px; margin-bottom: 24px;
+        }
+        .search-row input {
+            flex: 1; background: var(--surface);
+            border: 1px solid var(--border); border-radius: 8px;
+            padding: 10px 14px; color: var(--text); font-size: 14px;
+            outline: none; transition: border 0.2s, box-shadow 0.2s;
+            font-family: inherit;
+        }
+        .search-row input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+        }
+        .search-row button {
+            background: var(--primary); color: #fff;
+            border: none; border-radius: 8px;
+            padding: 10px 22px; font-size: 14px; font-weight: 600;
+            cursor: pointer; transition: background 0.2s; font-family: inherit;
+        }
+        .search-row button:hover { background: var(--primary-dark); }
+
+        /* Table */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius); overflow: hidden;
+        }
+        table { width: 100%; border-collapse: collapse; }
+        thead th {
+            padding: 11px 16px; text-align: left;
+            font-size: 11px; font-weight: 600; color: var(--muted);
+            text-transform: uppercase; letter-spacing: 0.06em;
+            background: var(--bg);
+            border-bottom: 1px solid var(--border);
+        }
+        tbody tr { transition: background 0.12s; border-bottom: 1px solid var(--border); }
+        tbody tr:last-child { border-bottom: none; }
+        tbody tr:hover { background: var(--primary-light); }
+        tbody td { padding: 12px 16px; font-size: 13px; color: var(--text); }
+
+        .empty-state { padding: 48px; text-align: center; color: var(--muted); font-size: 13px; }
+
+        .badge {
+            display: inline-block;
+            background: #dcfce7; color: #15803d;
+            border: 1px solid #bbf7d0;
+            font-size: 11px; font-weight: 500;
+            border-radius: 5px; padding: 2px 8px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- ── Overlay: Conectar ao Servidor ── -->
+<div id="dbOverlay" class="overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <div class="modal-icon">🔌</div>
+            <div>
+                <h2>Conectar ao Servidor</h2>
+                <p>Informe os dados do servidor PostgreSQL</p>
+            </div>
+        </div>
+        <div class="field">
+            <label>Endereço IP do Servidor</label>
+            <input type="text" id="dbHost" placeholder="localhost ou 192.168.1.10">
+        </div>
+        <div class="field">
+            <label>Nome do Banco de Dados</label>
+            <input type="text" id="dbName" placeholder="Ex: axion">
+        </div>
+        <div class="field">
+            <label>Senha do Postgres</label>
+            <input type="password" id="dbPass" placeholder="Senha">
+        </div>
+        <button id="connectBtn" class="btn-primary">Conectar</button>
+        <div id="dbError" class="error-msg"></div>
+        <div class="modal-footer">
+            <button class="btn-ghost" id="dbCancelBtn">← Cancelar (ESC)</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Overlay: Login Técnico ── -->
+<div id="techOverlay" class="overlay hidden">
+    <div class="modal">
+        <div class="modal-header">
+            <div class="modal-icon">🔐</div>
+            <div>
+                <h2>Acesso Técnico</h2>
+                <p>Necessário para alterar a conexão</p>
+            </div>
+        </div>
+        <div class="field">
+            <label>Usuário</label>
+            <input type="text" id="techUser" placeholder="root">
+        </div>
+        <div class="field">
+            <label>Senha</label>
+            <input type="password" id="techPass" placeholder="Senha técnica">
+        </div>
+        <button id="techLoginBtn" class="btn-primary">Entrar</button>
+        <div id="techError" class="error-msg"></div>
+        <div class="modal-footer">
+            <button class="btn-ghost" id="techCancelBtn">← Cancelar (ESC)</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Layout ── -->
+<div class="layout">
+
+    <!-- Sidebar -->
+    <aside>
+        <div class="sidebar-logo">
+            <div class="logo-text">
+                <span class="ax">AX</span><span class="ion">ION</span>
+            </div>
+            <span class="logo-subtitle">Consulta</span>
+        </div>
+
+        <a class="nav-item active" href="#">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            Catálogo
+        </a>
+
+        <div class="sidebar-bottom">
+            <button id="serverStatusBtn">
+                <span id="statusDot" class="dot off"></span>
+                <span id="statusText">Servidor OFF</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Conteúdo principal -->
+    <div class="content">
+        <div class="topbar">
+            <div>
+                <h1>Catálogo de Medicamentos Padronizados</h1>
+                <p>Busque por nome comercial, princípio ativo ou categoria</p>
+            </div>
+        </div>
+
+        <div class="page">
+            <div class="search-row">
+                <input type="text" id="searchInput" placeholder="🔍  Buscar por nome, código ou categoria...">
+                <button id="searchBtn">Buscar</button>
+            </div>
+
+            <div class="card">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Medicamento</th>
+                            <th>Dosagem</th>
+                            <th>Apresentação</th>
+                            <th>Categoria</th>
+                            <th>Estoque</th>
+                        </tr>
+                    </thead>
+                    <tbody id="medTableBody">
+                        <tr>
+                            <td colspan="6" class="empty-state">Conecte-se ao servidor para visualizar o catálogo.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module" src="/main.js"></script>
+</body>
+</html>
