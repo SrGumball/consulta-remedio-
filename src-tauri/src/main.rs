@@ -93,9 +93,25 @@ fn start_db_listener(app_handle: tauri::AppHandle, ip: String, db_name: String, 
                         continue;
                     }
                     
-                    let mut iter = client.notifications();
-                    while let Ok(Some(_)) = iter.next() {
-                        let _ = app_handle.emit("db_update", ());
+                    loop {
+                        if client.execute("", &[]).is_err() {
+                            break; // Connection lost, break inner loop to reconnect
+                        }
+                        
+                        let mut has_update = false;
+                        {
+                            let mut notifs = client.notifications();
+                            let mut iter = notifs.timeout_iter(Duration::from_millis(100));
+                            while let Ok(Some(_)) = iter.next() {
+                                has_update = true;
+                            }
+                        }
+                        
+                        if has_update {
+                            let _ = app_handle.emit("db_update", ());
+                        }
+                        
+                        thread::sleep(Duration::from_millis(400));
                     }
                 },
                 Err(e) => {
