@@ -101,7 +101,7 @@ async function loadMedicamentos(search) {
     medTableBody.innerHTML = `<tr><td colspan="7" class="empty-state">Buscando...</td></tr>`;
 
     // Colunas reais da tabela "Medicamento" no banco zorion
-    let query = `SELECT id, codigo, nome, concentracao, apresentacao, via_administracao, grupo_terapeutico, estoque_atual FROM "Medicamento"`;
+    let query = `SELECT id, codigo, nome, concentracao, apresentacao, via_administracao, grupo_terapeutico, estoque_atual, is_mav, portaria_344, ccih, antimicrobiano FROM "Medicamento"`;
     if (search.trim()) {
         const keywords = search.trim().split(/\s+/);
         const conditions = keywords.map(kw => `(nome ILIKE '%${kw}%' OR grupo_terapeutico ILIKE '%${kw}%' OR apresentacao ILIKE '%${kw}%' OR codigo ILIKE '%${kw}%')`);
@@ -161,15 +161,35 @@ function parseApresentacao(raw) {
     return { forma: raw, concentracao: '-' };
 }
 
+const MAV_KEYWORDS = ["POTASSIO", "POTÁSSIO", "SODIO 20%", "SÓDIO 20%", "ENOXAPARINA", "HEPARINA", "RIVAROXABANA", "INSULINA", "GLIBENCLAMIDA", "GLICAZIDA", "METFORMINA", "MORFINA", "TRAMADOL", "DIAZEPAM", "MIDAZOLAN", "ADRENALINA", "DOPAMINA", "AMIODARONA"];
+
+function checkIsMav(row) {
+    if (row.is_mav === true) return true;
+    if (!row.nome) return false;
+    const n = row.nome.toUpperCase();
+    return MAV_KEYWORDS.some(k => n.includes(k));
+}
+
 function renderTable(rows) {
     if (!rows || rows.length === 0) {
         medTableBody.innerHTML = `<tr><td colspan="7" class="empty-state">Nenhum medicamento encontrado.</td></tr>`;
         return;
     }
-    medTableBody.innerHTML = rows.map(r => `
+    medTableBody.innerHTML = rows.map(r => {
+        const is_mav = checkIsMav(r);
+        let badges = '';
+        if (is_mav) badges += `<span style="background:#fee2e2;color:#b91c1c;border:1px solid #fecaca;font-size:10px;padding:1px 4px;border-radius:4px;margin-left:4px;font-weight:600;">MAV/Alto Risco</span>`;
+        if (r.portaria_344) badges += `<span style="background:#e0e7ff;color:#4338ca;border:1px solid #c7d2fe;font-size:10px;padding:1px 4px;border-radius:4px;margin-left:4px;font-weight:600;">Port. 344</span>`;
+        if (r.ccih) badges += `<span style="background:#ffedd5;color:#c2410c;border:1px solid #fed7aa;font-size:10px;padding:1px 4px;border-radius:4px;margin-left:4px;font-weight:600;">CCIH</span>`;
+        if (r.antimicrobiano) badges += `<span style="background:#d1fae5;color:#047857;border:1px solid #a7f3d0;font-size:10px;padding:1px 4px;border-radius:4px;margin-left:4px;font-weight:600;">Antimicrobiano</span>`;
+
+        return `
         <tr>
             <td style="color:var(--muted);font-size:12px">${r.codigo ?? '-'}</td>
-            <td style="font-weight:600">${r.nome ?? '-'}</td>
+            <td style="font-weight:600; ${is_mav ? 'color:#b91c1c;' : ''}">
+                ${r.nome ?? '-'}
+                ${badges}
+            </td>
             <td>${r.concentracao ?? '-'}</td>
             <td>${r.apresentacao ?? '-'}</td>
             <td>${r.via_administracao ?? '-'}</td>
@@ -177,7 +197,8 @@ function renderTable(rows) {
             <td style="font-weight:600;color:${(r.estoque_atual ?? 0) > 0 ? 'var(--text)' : 'var(--danger)'}">
                 ${r.estoque_atual ?? 0}
             </td>
-        </tr>`).join('');
+        </tr>`;
+    }).join('');
 }
 
 // ── Login técnico ──
