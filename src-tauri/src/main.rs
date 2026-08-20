@@ -5,6 +5,13 @@
 
 use postgres::{Client, NoTls};
 use serde_json::{json, Value};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread;
+use std::time::Duration;
+use tauri::Emitter;
+use fallible_iterator::FallibleIterator;
+
+static LISTENER_ACTIVE: AtomicBool = AtomicBool::new(false);
 
 #[tauri::command]
 fn test_postgres_connection(ip: String, db_name: String, password: String) -> Result<String, String> {
@@ -66,11 +73,49 @@ fn query_postgres(ip: String, db_name: String, password: String, query: String) 
     Ok(serde_json::to_string(&result).unwrap_or_else(|_| "[]".to_string()))
 }
 
+#[tauri::command]
+fn start_db_listener(app_handle: tauri::AppHandle, ip: String, db_name: String, password: String) -> Result<(), String> {
+    if LISTENER_ACTIVE.load(Ordering::SeqCst) {
+        return Ok(());
+    }
+    
+    LISTENER_ACTIVE.store(true, Ordering::SeqCst);
+    
+    thread::spawn(move || {
+        let conn_str = format!("host={} user=postgres password={} dbname={} connect_timeout=3", ip, password, db_name);
+        
+        loop {
+            match Client::connect(&conn_str, NoTls) {
+                Ok(mut client) => {
+                    if let Err(e) = client.execute("LISTEN app_update", &[]) {
+                        eprintln!("Failed to listen: {}", e);
+                        thread::sleep(Duration::from_secs(5));
+                        continue;
+                    }
+                    
+                    let mut iter = client.notifications();
+                    while let Ok(Some(_)) = iter.next() {
+                        let _ = app_handle.emit("db_update", ());
+                    }
+                },
+                Err(e) => {
+                    eprintln!("Connection failed: {}", e);
+                }
+            }
+            thread::sleep(Duration::from_secs(3));
+        }
+    });
+    
+    Ok(())
+}
+
+
 fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             test_postgres_connection,
-            query_postgres
+            query_postgres,
+            start_db_listener
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

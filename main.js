@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 
 // ── Elementos ──
 const dbOverlay    = document.getElementById('dbOverlay');
@@ -74,6 +75,7 @@ async function connectDB() {
 
     try {
         await invoke('test_postgres_connection', { ip: host, dbName, password: pass });
+        await invoke('start_db_listener', { ip: host, dbName, password: pass });
         conn = { host, dbName, pass };
         
         // Salva para as próximas sessões
@@ -83,7 +85,7 @@ async function connectDB() {
         
         dbOverlay.classList.add('hidden');
         setOnline(dbName);
-        loadMedicamentos('');
+        loadMedicamentos(searchInput.value);
     } catch (e) {
         dbError.textContent = 'Falha: ' + e;
     } finally {
@@ -96,13 +98,13 @@ async function connectDB() {
 async function loadMedicamentos(search) {
     if (!isConnected) return;
 
-    medTableBody.innerHTML = `<tr><td colspan="5" class="empty-state">Buscando...</td></tr>`;
+    medTableBody.innerHTML = `<tr><td colspan="7" class="empty-state">Buscando...</td></tr>`;
 
-    // Colunas reais da tabela "Medicamento" no banco axion
-    let query = `SELECT id, codigo, nome, dosagem, apresentacao, categoria, estoque_atual FROM "Medicamento"`;
+    // Colunas reais da tabela "Medicamento" no banco zorion
+    let query = `SELECT id, codigo, nome, concentracao, apresentacao, via_administracao, grupo_terapeutico, estoque_atual FROM "Medicamento"`;
     if (search.trim()) {
         const keywords = search.trim().split(/\s+/);
-        const conditions = keywords.map(kw => `(nome ILIKE '%${kw}%' OR categoria ILIKE '%${kw}%' OR apresentacao ILIKE '%${kw}%' OR codigo ILIKE '%${kw}%')`);
+        const conditions = keywords.map(kw => `(nome ILIKE '%${kw}%' OR grupo_terapeutico ILIKE '%${kw}%' OR apresentacao ILIKE '%${kw}%' OR codigo ILIKE '%${kw}%')`);
         query += ` WHERE ` + conditions.join(' AND ');
     }
     query += ` ORDER BY nome ASC LIMIT 100`;
@@ -113,11 +115,11 @@ async function loadMedicamentos(search) {
         });
         renderTable(JSON.parse(raw));
     } catch (e) {
-        medTableBody.innerHTML = `<tr><td colspan="5" class="empty-state" style="color:#ef4444;">Erro: ${e}</td></tr>`;
+        medTableBody.innerHTML = `<tr><td colspan="7" class="empty-state" style="color:#ef4444;">Erro: ${e}</td></tr>`;
     }
 }
 
-// ── Parser de Apresentação (igual ao AXION Hospitalar) ──
+// ── Parser de Apresentação (igual ao ZORION Hospitalar) ──
 const APRES_MAP = {
     'COMP':   'Comprimido',
     'CAP':    'Cápsula',
@@ -144,33 +146,34 @@ const APRES_MAP = {
 };
 
 function parseApresentacao(raw) {
-    if (!raw || raw === '-') return { forma: '-', dosagem: '-' };
+    if (!raw || raw === '-') return { forma: '-', concentracao: '-' };
     const str = raw.trim().toUpperCase();
     // Tenta encontrar a sigla no início
-    let forma = '-', dosagem = '-';
+    let forma = '-', concentracao = '-';
     for (const sigla of Object.keys(APRES_MAP).sort((a,b) => b.length - a.length)) {
         if (str.startsWith(sigla)) {
             forma = APRES_MAP[sigla];
-            dosagem = str.slice(sigla.length).trim() || '-';
-            return { forma, dosagem };
+            concentracao = str.slice(sigla.length).trim() || '-';
+            return { forma, concentracao };
         }
     }
     // Se não achou sigla, retorna o campo inteiro como apresentação
-    return { forma: raw, dosagem: '-' };
+    return { forma: raw, concentracao: '-' };
 }
 
 function renderTable(rows) {
     if (!rows || rows.length === 0) {
-        medTableBody.innerHTML = `<tr><td colspan="5" class="empty-state">Nenhum medicamento encontrado.</td></tr>`;
+        medTableBody.innerHTML = `<tr><td colspan="7" class="empty-state">Nenhum medicamento encontrado.</td></tr>`;
         return;
     }
     medTableBody.innerHTML = rows.map(r => `
         <tr>
             <td style="color:var(--muted);font-size:12px">${r.codigo ?? '-'}</td>
             <td style="font-weight:600">${r.nome ?? '-'}</td>
-            <td>${r.dosagem ?? '-'}</td>
+            <td>${r.concentracao ?? '-'}</td>
             <td>${r.apresentacao ?? '-'}</td>
-            <td>${r.categoria ?? '-'}</td>
+            <td>${r.via_administracao ?? '-'}</td>
+            <td>${r.grupo_terapeutico ?? '-'}</td>
             <td style="font-weight:600;color:${(r.estoque_atual ?? 0) > 0 ? 'var(--text)' : 'var(--danger)'}">
                 ${r.estoque_atual ?? 0}
             </td>
@@ -243,10 +246,11 @@ window.addEventListener('DOMContentLoaded', async () => {
         
         try {
             await invoke('test_postgres_connection', { ip: savedHost, dbName: savedDb, password: savedPass });
+            await invoke('start_db_listener', { ip: savedHost, dbName: savedDb, password: savedPass });
             conn = { host: savedHost, dbName: savedDb, pass: savedPass };
             dbOverlay.classList.add('hidden');
             setOnline(savedDb);
-            loadMedicamentos('');
+            loadMedicamentos(searchInput.value);
         } catch (e) {
             dbError.textContent = 'Sessão anterior falhou: ' + e;
         } finally {
@@ -254,4 +258,11 @@ window.addEventListener('DOMContentLoaded', async () => {
             connectBtn.style.opacity = '1';
         }
     }
+    
+    // Configura o listener para atualizações em tempo real (LISTEN/NOTIFY)
+    listen('db_update', () => {
+        if (isConnected) {
+            loadMedicamentos(searchInput.value);
+        }
+    });
 });

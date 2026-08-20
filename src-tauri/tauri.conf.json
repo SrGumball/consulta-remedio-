@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Axion Consulta",
+  "productName": "Zorion Consulta",
   "version": "1.0.0",
-  "identifier": "com.axion.consulta",
+  "identifier": "com.zorion.consulta",
   "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "AXION Consulta",
+        "title": "Zorion Consulta",
         "width": 1000,
         "height": 800,
         "resizable": true,

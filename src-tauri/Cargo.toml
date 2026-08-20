@@ -1,7 +1,7 @@
 [package]
-name = "axion-consulta"
+name = "zorion-consulta"
 version = "1.0.0"
-description = "Consulta de Medicamentos AXION"
+description = "Consulta de Medicamentos ZORION"
 authors = ["Alef"]
 edition = "2021"
 
@@ -13,3 +13,4 @@ tauri = { version = "2", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 postgres = "0.19"
+fallible-iterator = "0.2.0"

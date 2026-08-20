@@ -94,17 +94,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 
 [[package]]
-name = "axion-consulta"
-version = "1.0.0"
-dependencies = [
- "postgres",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
-]
-
-[[package]]
 name = "base64"
 version = "0.21.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4781,3 +4770,15 @@ name = "zmij"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b"
+
+[[package]]
+name = "zorion-consulta"
+version = "1.0.0"
+dependencies = [
+ "fallible-iterator",
+ "postgres",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+]

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AXION Consulta - Catálogo Médico</title>
+    <title>Zorion Consulta - Catálogo Médico</title>
     <link rel="icon" type="image/png" href="/src-tauri/icons/icon.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -255,7 +255,7 @@
         </div>
         <div class="field">
             <label>Nome do Banco de Dados</label>
-            <input type="text" id="dbName" placeholder="Ex: axion">
+            <input type="text" id="dbName" placeholder="Ex: zorion">
         </div>
         <div class="field">
             <label>Senha do Postgres</label>
@@ -302,7 +302,7 @@
     <aside>
         <div class="sidebar-logo">
             <div class="logo-text">
-                <span class="ax">AX</span><span class="ion">ION</span>
+                <span class="ax">ZOR</span><span class="ion">ION</span>
             </div>
             <span class="logo-subtitle">Consulta</span>
         </div>
@@ -341,15 +341,16 @@
                         <tr>
                             <th>Código</th>
                             <th>Medicamento</th>
-                            <th>Dosagem</th>
+                            <th>Concentração</th>
                             <th>Apresentação</th>
-                            <th>Categoria</th>
+                            <th>Via de Administração</th>
+                            <th>Grupo Terapêutico</th>
                             <th>Estoque</th>
                         </tr>
                     </thead>
                     <tbody id="medTableBody">
                         <tr>
-                            <td colspan="6" class="empty-state">Conecte-se ao servidor para visualizar o catálogo.</td>
+                            <td colspan="7" class="empty-state">Conecte-se ao servidor para visualizar o catálogo.</td>
                         </tr>
                     </tbody>
                 </table>
